@@ -71,14 +71,55 @@ param(
 
 if ($Help) {
     Write-Host @"
-Check-LOLRMM.ps1 - available arguments:
 
-  -JsonPath <path>          Path to a local rmm_tools.json catalog (skip the download).
-  -Category <All|RMM|RAT>   Filter the catalog by category. Default: All.
-  -ScanFilesystem            Also sweep common install directories for matching filenames.
-  -OutputCsv <path>          Path to export findings as CSV.
-  -Remove                    Prompt [y/N] per finding to remove it (process/service/uninstaller/file/registry).
-  -Help                      Show this list and exit.
+Check-LOLRMM.ps1
+
+SYNOPSIS
+    Checks the local Windows system for known RMM/RAT tools listed in the LOLRMM project.
+
+DESCRIPTION
+    Pulls the tool catalog from https://lolrmm.io/api/rmm_tools.json (or a local copy),
+    then cross-references it against:
+      - Running processes
+      - Installed services (and their binary paths)
+      - Installed programs (registry Uninstall keys)
+      - Known Registry artifacts listed per-tool
+      - Known Disk artifacts listed per-tool
+      - Optionally, a filesystem sweep of common install directories
+
+    This is a triage/hunting aid, not a definitive verdict - a match means "this box has
+    something that looks like a known RMM tool," not "this box is compromised." Some RMM
+    tools are legitimately deployed by IT; verify before acting.
+
+PARAMETERS
+    -JsonPath <path>
+        Path to a locally-downloaded copy of rmm_tools.json. Use this on boxes without
+        internet access (download it ahead of time from https://lolrmm.io/api/rmm_tools.json).
+
+    -Category <All|RMM|RAT>
+        Filter the catalog: All, RMM, or RAT. Default: All.
+
+    -ScanFilesystem
+        Also walks common install directories (Program Files, AppData) looking for
+        filenames that match known tool binaries. Slower, off by default.
+
+    -OutputCsv <path>
+        Path to export findings as CSV.
+
+    -Remove
+        After reporting, walk each individual finding and prompt [y/N] before taking a
+        removal action on it: kill the process, stop+delete the service, run the
+        installed program's uninstaller, or delete the matched registry key/file.
+        Off by default.
+
+    -Help
+        Show this help and exit.
+
+EXAMPLES
+    .\Check-LOLRMM.ps1
+    .\Check-LOLRMM.ps1 -JsonPath C:\tools\rmm_tools.json -ScanFilesystem -OutputCsv findings.csv
+    .\Check-LOLRMM.ps1 -Remove
+
 "@
     return
 }

@@ -27,9 +27,10 @@ if ($index -lt 0 -or $index -ge $scripts.Count) {
 $selected = $scripts[$index]
 $scriptText = Invoke-RestMethod -Uri "$repoRaw/$($selected.Path)"
 
-$help = [regex]::Match($scriptText, '(?s)<#.*?#>')
-if ($help.Success) {
-    Write-Host "`n$($help.Value)`n"
+$paramBlock = [regex]::Match($scriptText, '(?ms)^param\s*\((.*?)^\)')
+if ($paramBlock.Success) {
+    $argNames = [regex]::Matches($paramBlock.Groups[1].Value, '\$(\w+)') | ForEach-Object { "-$($_.Groups[1].Value)" }
+    Write-Host "`nAvailable arguments: $($argNames -join ', ')`n"
 }
 
 $argString = Read-Host "Arguments for $($selected.Name) (optional, press Enter to skip)"
