@@ -36,6 +36,9 @@
     removal action on it: kill the process, stop+delete the service, run the installed
     program's uninstaller, or delete the matched registry key/file. Off by default.
 
+.PARAMETER Help
+    List all available arguments and exit.
+
 .EXAMPLE
     .\Check-LOLRMM.ps1
 
@@ -62,8 +65,23 @@ param(
     [string]$Category = 'All',
     [switch]$ScanFilesystem,
     [string]$OutputCsv,
-    [switch]$Remove
+    [switch]$Remove,
+    [switch]$Help
 )
+
+if ($Help) {
+    Write-Host @"
+Check-LOLRMM.ps1 - available arguments:
+
+  -JsonPath <path>          Path to a local rmm_tools.json catalog (skip the download).
+  -Category <All|RMM|RAT>   Filter the catalog by category. Default: All.
+  -ScanFilesystem            Also sweep common install directories for matching filenames.
+  -OutputCsv <path>          Path to export findings as CSV.
+  -Remove                    Prompt [y/N] per finding to remove it (process/service/uninstaller/file/registry).
+  -Help                      Show this list and exit.
+"@
+    return
+}
 
 if ($PSVersionTable.PSVersion -lt [Version]'5.1') {
     throw "Check-LOLRMM requires PowerShell 5.1 or later (detected $($PSVersionTable.PSVersion))."
