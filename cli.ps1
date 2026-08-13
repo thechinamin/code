@@ -25,9 +25,16 @@ if ($index -lt 0 -or $index -ge $scripts.Count) {
 }
 
 $selected = $scripts[$index]
+$scriptText = Invoke-RestMethod -Uri "$repoRaw/$($selected.Path)"
+
+$help = [regex]::Match($scriptText, '(?s)<#.*?#>')
+if ($help.Success) {
+    Write-Host "`n$($help.Value)`n"
+}
+
 $argString = Read-Host "Arguments for $($selected.Name) (optional, press Enter to skip)"
 
-$scriptBlock = [scriptblock]::Create((Invoke-RestMethod -Uri "$repoRaw/$($selected.Path)"))
+$scriptBlock = [scriptblock]::Create($scriptText)
 
 Write-Host "`nRunning $($selected.Name)...`n"
 if ($argString) {
