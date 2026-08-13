@@ -25,5 +25,13 @@ if ($index -lt 0 -or $index -ge $scripts.Count) {
 }
 
 $selected = $scripts[$index]
+$argString = Read-Host "Arguments for $($selected.Name) (optional, press Enter to skip)"
+
+$scriptBlock = [scriptblock]::Create((Invoke-RestMethod -Uri "$repoRaw/$($selected.Path)"))
+
 Write-Host "`nRunning $($selected.Name)...`n"
-Invoke-Expression (Invoke-RestMethod -Uri "$repoRaw/$($selected.Path)")
+if ($argString) {
+    Invoke-Expression "& `$scriptBlock $argString"
+} else {
+    & $scriptBlock
+}
