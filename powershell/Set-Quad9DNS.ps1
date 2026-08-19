@@ -12,13 +12,18 @@
     DNS is set per-adapter as a static override, so it persists across whatever network
     the adapter later joins (e.g. configured in the office, still applies at home).
 
+    On Windows 11 21H2+, also registers Quad9's DNS-over-HTTPS template for these
+    addresses and enforces "Encrypted only" (no fallback to plain UDP). DoH registration
+    is machine-wide, not per-adapter. On older Windows where the DoH cmdlets don't exist,
+    this step is skipped with a warning and plain DNS is still applied.
+
 .PARAMETER InterfaceAlias
     Name(s) of specific network adapter(s) to target (as shown by Get-NetAdapter).
     Default: every adapter currently in the "Up" state.
 
 .PARAMETER Restore
-    Reverts the targeted adapter(s) back to automatic (DHCP-assigned) DNS instead of
-    setting Quad9.
+    Reverts the targeted adapter(s) back to automatic (DHCP-assigned) DNS and removes the
+    Quad9 DoH registration, instead of setting Quad9.
 
 .PARAMETER Help
     List all available arguments and exit.
@@ -66,14 +71,19 @@ DESCRIPTION
     DNS is set per-adapter as a static override, so it persists across whatever network
     the adapter later joins (e.g. configured in the office, still applies at home).
 
+    On Windows 11 21H2+, also registers Quad9's DNS-over-HTTPS template for these
+    addresses and enforces "Encrypted only" (no fallback to plain UDP). DoH registration
+    is machine-wide, not per-adapter. On older Windows where the DoH cmdlets don't exist,
+    this step is skipped with a warning and plain DNS is still applied.
+
 PARAMETERS
     -InterfaceAlias <name[]>
         Name(s) of specific network adapter(s) to target (as shown by Get-NetAdapter).
         Default: every adapter currently in the "Up" state.
 
     -Restore
-        Reverts the targeted adapter(s) back to automatic (DHCP-assigned) DNS instead
-        of setting Quad9.
+        Reverts the targeted adapter(s) back to automatic (DHCP-assigned) DNS and removes
+        the Quad9 DoH registration, instead of setting Quad9.
 
     -Help
         Show this help and exit.
@@ -130,6 +140,38 @@ foreach ($adapter in $adapters) {
     }
     catch {
         Write-Host "$($adapter.Name): failed - $_" -ForegroundColor Red
+    }
+}
+
+# --- DNS-over-HTTPS enforcement (Windows 11 21H2+) ------------------------
+# DoH registration is machine-wide (keyed by server IP), not per-adapter.
+
+$dohTemplate = 'https://dns.quad9.net/dns-query'
+
+if (-not (Get-Command Add-DnsClientDohServerAddress -ErrorAction SilentlyContinue)) {
+    Write-Warning "DNS-over-HTTPS cmdlets not found (requires Windows 11 21H2+) - DNS servers were set without encryption enforcement."
+} else {
+    foreach ($ip in $quad9Servers) {
+        try {
+            if ($Restore) {
+                Remove-DnsClientDohServerAddress -ServerAddress $ip -ErrorAction SilentlyContinue
+            } else {
+                $existing = Get-DnsClientDohServerAddress -ServerAddress $ip -ErrorAction SilentlyContinue
+                if ($existing) {
+                    Set-DnsClientDohServerAddress -ServerAddress $ip -DohTemplate $dohTemplate -AllowFallbackToUdp $false -AutoUpgrade $true
+                } else {
+                    Add-DnsClientDohServerAddress -ServerAddress $ip -DohTemplate $dohTemplate -AllowFallbackToUdp $false -AutoUpgrade $true
+                }
+            }
+        }
+        catch {
+            Write-Host "${ip}: DoH registration failed - $_" -ForegroundColor Red
+        }
+    }
+    if ($Restore) {
+        Write-Host "DNS-over-HTTPS registration removed for Quad9 servers." -ForegroundColor Green
+    } else {
+        Write-Host "DNS-over-HTTPS set to 'Encrypted only' for Quad9 servers." -ForegroundColor Green
     }
 }
 
