@@ -175,6 +175,34 @@ if (-not (Get-Command Add-DnsClientDohServerAddress -ErrorAction SilentlyContinu
     }
 }
 
+# --- Verify current state --------------------------------------------------
+# Re-queries live system state (not just "the calls above didn't error") so you
+# can confirm what actually took effect, for both -Restore and normal runs.
+
+Write-Host "`n--- Current DNS servers ---`n" -ForegroundColor Cyan
+foreach ($adapter in $adapters) {
+    foreach ($entry in (Get-DnsClientServerAddress -InterfaceAlias $adapter.Name)) {
+        $servers = if ($entry.ServerAddresses) { $entry.ServerAddresses -join ', ' } else { '(none / automatic)' }
+        Write-Host "  $($adapter.Name) [$($entry.AddressFamily)]: $servers"
+    }
+}
+
+Write-Host "`n--- DNS-over-HTTPS status for Quad9 servers ---`n" -ForegroundColor Cyan
+if (-not (Get-Command Get-DnsClientDohServerAddress -ErrorAction SilentlyContinue)) {
+    Write-Host "  DNS-over-HTTPS cmdlets not available on this OS - cannot verify encryption state." -ForegroundColor Yellow
+} else {
+    foreach ($ip in $quad9Servers) {
+        $doh = Get-DnsClientDohServerAddress -ServerAddress $ip -ErrorAction SilentlyContinue
+        if (-not $doh) {
+            Write-Host "  ${ip}: not registered (unencrypted)"
+        } elseif ($doh.AllowFallbackToUdp) {
+            Write-Host "  ${ip}: encrypted, fallback to unencrypted allowed"
+        } else {
+            Write-Host "  ${ip}: encrypted only (no fallback)" -ForegroundColor Green
+        }
+    }
+}
+
 }
 finally {
     $ErrorActionPreference = $prevErrorActionPreference
