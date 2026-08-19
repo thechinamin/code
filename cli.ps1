@@ -31,10 +31,33 @@ $scriptText = Invoke-RestMethod -Uri "$repoRaw/$($selected.Path)"
 
 $paramBlock = [regex]::Match($scriptText, '(?ms)^param\s*\((.*?)^\)')
 if ($paramBlock.Success) {
-    $argNames = [regex]::Matches($paramBlock.Groups[1].Value, '\$(\w+)(?:\s*=\s*(''[^'']*''|"[^"]*"|[^,\r\n]+))?') | ForEach-Object {
-        $name = $_.Groups[1].Value
-        $default = $_.Groups[2].Value.Trim().Trim("'", '"')
-        if ($default) { "-$name (default: $default)" } else { "-$name" }
+    $paramText = $paramBlock.Groups[1].Value
+    $nameMatches = [regex]::Matches($paramText, '\$(\w+)(?:\s*=\s*(''[^'']*''|"[^"]*"|[^,\r\n]+))?')
+
+    $argNames = for ($i = 0; $i -lt $nameMatches.Count; $i++) {
+        $m = $nameMatches[$i]
+        $name = $m.Groups[1].Value
+        $default = $m.Groups[2].Value.Trim().Trim("'", '"')
+
+        # Text between the previous parameter's match and this one holds this
+        # parameter's attributes (e.g. [ValidateSet(...)]) - sliced by position
+        # rather than regex, since type names like [string[]] have nested
+        # brackets that a bracket-matching regex would mishandle.
+        $prefixStart = if ($i -eq 0) { 0 } else { $nameMatches[$i - 1].Index + $nameMatches[$i - 1].Length }
+        $prefix = $paramText.Substring($prefixStart, $m.Index - $prefixStart)
+
+        $choices = $null
+        $validateSet = [regex]::Match($prefix, 'ValidateSet\(([^)]*)\)')
+        if ($validateSet.Success) {
+            $choices = ([regex]::Matches($validateSet.Groups[1].Value, "'([^']*)'|""([^""]*)""") | ForEach-Object {
+                if ($_.Groups[1].Success) { $_.Groups[1].Value } else { $_.Groups[2].Value }
+            }) -join '|'
+        }
+
+        $label = "-$name"
+        if ($choices) { $label += " <$choices>" }
+        if ($default) { $label += " (default: $default)" }
+        $label
     }
     Write-Host "`nAvailable arguments: $($argNames -join ', ')`n"
 }
