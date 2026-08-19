@@ -1,3 +1,4 @@
+#Requires -Version 5.1
 <#
 Installs or removes OpenSSH Server on a Windows machine for remote access.
 Run from an admin PowerShell prompt:
