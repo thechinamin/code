@@ -1,10 +1,11 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Sets or restores encrypted DNS (Quad9 or Google) on this machine's active network adapters.
+    Sets or restores encrypted DNS (Quad9 or Google) on this machine's Wi-Fi/Ethernet adapters.
 
 .DESCRIPTION
-    Points active network adapters at a public resolver, IPv4 and IPv6:
+    Points every enabled Wi-Fi/Ethernet adapter (VPN and other virtual adapters are skipped)
+    at a public resolver, IPv4 and IPv6:
       Quad9  (default) - secured, blocks known-malicious domains, no EDNS Client Subnet
         IPv4: 9.9.9.9, 149.112.112.112
         IPv6: 2620:fe::fe, 2620:fe::9
@@ -25,7 +26,8 @@
 
 .PARAMETER InterfaceAlias
     Name(s) of specific network adapter(s) to target (as shown by Get-NetAdapter).
-    Default: every adapter currently in the "Up" state.
+    Default: every enabled Wi-Fi or Ethernet adapter, connected or not - VPN and other
+    virtual adapters (TAP/WinTun, Hyper-V, WSL, etc.) are skipped.
 
 .PARAMETER Restore
     Reverts the targeted adapter(s) back to automatic (DHCP-assigned) DNS and removes any
@@ -71,10 +73,11 @@ if ($Help) {
 Set-DNS.ps1
 
 SYNOPSIS
-    Sets or restores encrypted DNS (Quad9 or Google) on this machine's active network adapters.
+    Sets or restores encrypted DNS (Quad9 or Google) on this machine's Wi-Fi/Ethernet adapters.
 
 DESCRIPTION
-    Points active network adapters at a public resolver, IPv4 and IPv6:
+    Points every enabled Wi-Fi/Ethernet adapter (VPN and other virtual adapters are skipped)
+    at a public resolver, IPv4 and IPv6:
       Quad9  (default) - secured, blocks known-malicious domains, no EDNS Client Subnet
         IPv4: 9.9.9.9, 149.112.112.112
         IPv6: 2620:fe::fe, 2620:fe::9
@@ -96,7 +99,8 @@ PARAMETERS
 
     -InterfaceAlias <name[]>
         Name(s) of specific network adapter(s) to target (as shown by Get-NetAdapter).
-        Default: every adapter currently in the "Up" state.
+        Default: every enabled Wi-Fi or Ethernet adapter, connected or not - VPN and
+        other virtual adapters (TAP/WinTun, Hyper-V, WSL, etc.) are skipped.
 
     -Restore
         Reverts the targeted adapter(s) back to automatic (DHCP-assigned) DNS and removes
@@ -152,7 +156,15 @@ $allProviderServers = $providers.Values | ForEach-Object { $_.Servers } | Select
 if ($InterfaceAlias) {
     $adapters = Get-NetAdapter -Name $InterfaceAlias
 } else {
-    $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+    # InterfaceType 6 = Ethernet 802.3, 71 = IEEE 802.11 (Wi-Fi). Excludes VPN clients and
+    # other software adapters (most report -Virtual, even ones typed as Ethernet, like
+    # TAP/WinTun); excludes Disabled/NotPresent hardware, but not Disconnected - an idle
+    # Wi-Fi adapter still gets configured so it's ready once you join a network.
+    $adapters = Get-NetAdapter | Where-Object {
+        $_.InterfaceType -in 6, 71 -and
+        -not $_.Virtual -and
+        $_.Status -notin 'Disabled', 'NotPresent'
+    }
 }
 
 if (-not $adapters) {
