@@ -1,3 +1,4 @@
+#Requires -Version 5.1
 <#
 CLI launcher for scripts in thechinamin/code.
 Run with:
@@ -7,8 +8,9 @@ Run with:
 $repoRaw = "https://raw.githubusercontent.com/thechinamin/code/main"
 
 $scripts = @(
-    @{ Name = "Check-LOLRMM"; Description = "Scan for known RMM/RAT tools (LOLRMM catalog)"; Path = "powershell/Check-LOLRMM.ps1" },
-    @{ Name = "Setup-SSH";    Description = "Install/remove OpenSSH Server on Windows";        Path = "powershell/setup-ssh.ps1" }
+    @{ Name = "Check-LOLRMM";  Description = "Scan for known RMM/RAT tools (LOLRMM catalog)"; Path = "powershell/Check-LOLRMM.ps1" },
+    @{ Name = "Setup-SSH";     Description = "Install/remove OpenSSH Server on Windows";        Path = "powershell/setup-ssh.ps1" },
+    @{ Name = "Set-Quad9DNS";  Description = "Set/restore Quad9 secured DNS on active adapters"; Path = "powershell/Set-Quad9DNS.ps1" }
 )
 
 Write-Host "`nAvailable scripts:`n"
