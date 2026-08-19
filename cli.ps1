@@ -31,7 +31,11 @@ $scriptText = Invoke-RestMethod -Uri "$repoRaw/$($selected.Path)"
 
 $paramBlock = [regex]::Match($scriptText, '(?ms)^param\s*\((.*?)^\)')
 if ($paramBlock.Success) {
-    $argNames = [regex]::Matches($paramBlock.Groups[1].Value, '\$(\w+)') | ForEach-Object { "-$($_.Groups[1].Value)" }
+    $argNames = [regex]::Matches($paramBlock.Groups[1].Value, '\$(\w+)(?:\s*=\s*(''[^'']*''|"[^"]*"|[^,\r\n]+))?') | ForEach-Object {
+        $name = $_.Groups[1].Value
+        $default = $_.Groups[2].Value.Trim().Trim("'", '"')
+        if ($default) { "-$name (default: $default)" } else { "-$name" }
+    }
     Write-Host "`nAvailable arguments: $($argNames -join ', ')`n"
 }
 
